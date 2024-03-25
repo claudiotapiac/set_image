@@ -1,0 +1,8 @@
+functions-framework==3.*
+numpy=1.23.1
+torch=0.13.1
+torchvision=0.14.1
+segmentation-models-pytorch=0.3.3
+pytorch-lightning=1.9.5
+opencv-python=4.9.0.80
+pymongo=4.4.1
