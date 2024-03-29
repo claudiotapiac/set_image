@@ -383,7 +383,7 @@ def main(request):
 		model.eval()  
 
 		with torch.no_grad():
-    		logits = model(tensor)
+    			logits = model(tensor)
         
         	pr_masks = logits.sigmoid()
 
@@ -392,7 +392,7 @@ def main(request):
         	area = 0
 
         	for result in results:
-            	area += cv2.contourArea(result['cnt'])
+            		area += cv2.contourArea(result['cnt'])
 
         	output = {"area": area, 
 			  "path_img": remote_path_img, 
