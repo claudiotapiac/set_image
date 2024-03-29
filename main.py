@@ -32,17 +32,17 @@ class UNetModel(pl.LightningModule):
 		fn_class = [0] * num_class_true
 
 		for class_true in range(num_class_true):
-		pred_mask = pred_masks[:, class_true, :, :]
-		true_mask = true_masks[:, class_true, :, :]
-		
-		pred_mask_bool = pred_mask > 0.5  
-		true_mask_bool = true_mask > 0.5  # 
+			pred_mask = pred_masks[:, class_true, :, :]
+			true_mask = true_masks[:, class_true, :, :]
 			
-		for i in range(num_det):
-			tp_class[class_true] += (pred_mask_bool[i] & true_mask_bool[i]).sum().item()
-			fp_class[class_true] += (pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
-			fn_class[class_true] += (~pred_mask_bool[i] & true_mask_bool[i]).sum().item()
-			tn_class[class_true] += (~pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
+			pred_mask_bool = pred_mask > 0.5  
+			true_mask_bool = true_mask > 0.5  # 
+			
+			for i in range(num_det):
+				tp_class[class_true] += (pred_mask_bool[i] & true_mask_bool[i]).sum().item()
+				fp_class[class_true] += (pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
+				fn_class[class_true] += (~pred_mask_bool[i] & true_mask_bool[i]).sum().item()
+				tn_class[class_true] += (~pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
 		
 		tp_tensor = torch.FloatTensor([tp_class])
 		fp_tensor = torch.FloatTensor([fp_class])
