@@ -12,148 +12,148 @@ from to_firebase import to_firebase
 
 class UNetModel(pl.LightningModule):
 	def __init__(self, arch, encoder_name, in_channels, out_classes, cat_names, **kwargs):
-        	super().__init__()
-        	self.save_hyperparameters()
-        	self.model = smp.create_model(
-            		arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
-        	)
+		super().__init__()
+		self.save_hyperparameters()
+		self.model = smp.create_model(
+				arch, encoder_name=encoder_name, in_channels=in_channels, classes=out_classes, **kwargs
+		)
 
-        	# for image segmentation dice loss could be the best first choice
-        	self.loss_fn = smp.losses.DiceLoss(smp.losses.MULTILABEL_MODE, from_logits=True)
-        	self.epoch = 0
-        	self.cat_names = cat_names
+		# for image segmentation dice loss could be the best first choice
+		self.loss_fn = smp.losses.DiceLoss(smp.losses.MULTILABEL_MODE, from_logits=True)
+		self.epoch = 0
+		self.cat_names = cat_names
     
 	def calculate_stats(self, pred_masks, true_masks, iou_threshold=0.5):
-	        num_class_true = true_masks.size(1)
-	        num_det = true_masks.size(0)
-	        tp_class = [0] * num_class_true
-	        tn_class = [0] * num_class_true
-	        fp_class = [0] * num_class_true
-	        fn_class = [0] * num_class_true
-	
-	        for class_true in range(num_class_true):
-			pred_mask = pred_masks[:, class_true, :, :]
-			true_mask = true_masks[:, class_true, :, :]
+		num_class_true = true_masks.size(1)
+		num_det = true_masks.size(0)
+		tp_class = [0] * num_class_true
+		tn_class = [0] * num_class_true
+		fp_class = [0] * num_class_true
+		fn_class = [0] * num_class_true
+
+		for class_true in range(num_class_true):
+		pred_mask = pred_masks[:, class_true, :, :]
+		true_mask = true_masks[:, class_true, :, :]
+		
+		pred_mask_bool = pred_mask > 0.5  
+		true_mask_bool = true_mask > 0.5  # 
 			
-			pred_mask_bool = pred_mask > 0.5  
-			true_mask_bool = true_mask > 0.5  # 
-	            
-			for i in range(num_det):
-				tp_class[class_true] += (pred_mask_bool[i] & true_mask_bool[i]).sum().item()
-				fp_class[class_true] += (pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
-				fn_class[class_true] += (~pred_mask_bool[i] & true_mask_bool[i]).sum().item()
-				tn_class[class_true] += (~pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
-	        
-	        tp_tensor = torch.FloatTensor([tp_class])
-	        fp_tensor = torch.FloatTensor([fp_class])
-	        fn_tensor = torch.FloatTensor([fn_class])
-	        tn_tensor = torch.FloatTensor([tn_class])
-	
-	        return tp_tensor, fp_tensor, fn_tensor, tn_tensor
+		for i in range(num_det):
+			tp_class[class_true] += (pred_mask_bool[i] & true_mask_bool[i]).sum().item()
+			fp_class[class_true] += (pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
+			fn_class[class_true] += (~pred_mask_bool[i] & true_mask_bool[i]).sum().item()
+			tn_class[class_true] += (~pred_mask_bool[i] & ~true_mask_bool[i]).sum().item()
+		
+		tp_tensor = torch.FloatTensor([tp_class])
+		fp_tensor = torch.FloatTensor([fp_class])
+		fn_tensor = torch.FloatTensor([fn_class])
+		tn_tensor = torch.FloatTensor([tn_class])
+
+		return tp_tensor, fp_tensor, fn_tensor, tn_tensor
 
     
 	def pod(self,tp, fp, fn):    
-	        num_class = tp.size(1)
-	        num_det = tp.size(0)
-	        pod_total = []
-        
-	        for e in range(num_det):
-			pod_class = [0]*num_class
-			for i in range(num_class):
-				pod_class[i] = tp[e,i]/(2*tp[e,i]+fp[e,i] + 1e-8)
-	            
-				pod_total.append(pod_class)
+		num_class = tp.size(1)
+		num_det = tp.size(0)
+		pod_total = []
 	
-	        return torch.FloatTensor(pod_total)
+		for e in range(num_det):
+		pod_class = [0]*num_class
+		for i in range(num_class):
+			pod_class[i] = tp[e,i]/(2*tp[e,i]+fp[e,i] + 1e-8)
+			
+			pod_total.append(pod_class)
+
+		return torch.FloatTensor(pod_total)
         
 	def forward(self, image):
-        	mask = self.model(image)
-        	return mask
+		mask = self.model(image)
+		return mask
 
 	def shared_step(self, batch, stage):
         
-	        image = batch[0]
-	
-	        assert image.ndim == 4
-	
-	        h, w = image.shape[2:]
-	        assert h % 32 == 0 and w % 32 == 0
-	
-	        mask = batch[1]
-	
-	        assert mask.ndim == 4
-	
-	        assert mask.max() <= 1.0 and mask.min() >= 0
-	
-	        logits_mask = self.forward(image)
-	        
-	        loss = self.loss_fn(logits_mask, mask)
-	
-	        prob_mask = logits_mask.sigmoid()
-	        pred_mask = (prob_mask > 0.5).float()
-	
-	        tp, fp, fn, tn = self.calculate_stats(pred_mask.long(), mask.long())
-	
-	        return {
-	            "loss": loss,
-	            "tp": tp,
-	            "fp": fp,
-	            "fn": fn,
-	            "tn": tn,
-	        }
+		image = batch[0]
+
+		assert image.ndim == 4
+
+		h, w = image.shape[2:]
+		assert h % 32 == 0 and w % 32 == 0
+
+		mask = batch[1]
+
+		assert mask.ndim == 4
+
+		assert mask.max() <= 1.0 and mask.min() >= 0
+
+		logits_mask = self.forward(image)
+		
+		loss = self.loss_fn(logits_mask, mask)
+
+		prob_mask = logits_mask.sigmoid()
+		pred_mask = (prob_mask > 0.5).float()
+
+		tp, fp, fn, tn = self.calculate_stats(pred_mask.long(), mask.long())
+
+		return {
+			"loss": loss,
+			"tp": tp,
+			"fp": fp,
+			"fn": fn,
+			"tn": tn,
+		}
 
 	def shared_epoch_end(self, outputs, stage):
 	        
-	        losses = [x["loss"].detach().item() for x in outputs]
-	        
-	        tp = torch.cat([x["tp"] for x in outputs])
-	        fp = torch.cat([x["fp"] for x in outputs])
-	        fn = torch.cat([x["fn"] for x in outputs])
-	        tn = torch.cat([x["tn"] for x in outputs])
-	
-	        per_image_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro-imagewise")
-	        
-	        pod_score = smp.metrics.f1_score(tp, fp, fn, tn, reduction = "none")
-	        pod_score_classwise = pod_score.mean(axis = 0)
-	        
-	        dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
-	
-	        try_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction = "none")
-	        iou_classwise = try_iou.mean(axis = 0)
-	
-	        metrics = {}
-	        loss = sum(losses)/len(losses)
-	        metrics[f'{stage}_loss'] = loss
-	        metrics[f'{stage}_iou'] = dataset_iou
-        
-        	for i, name in enumerate(self.cat_names):
-            		metrics[f'{stage}_{name}_pod'] = pod_score_classwise[i]
-            		metrics[f'{stage}_{name}_iou'] = iou_classwise[i]
+		losses = [x["loss"].detach().item() for x in outputs]
+		
+		tp = torch.cat([x["tp"] for x in outputs])
+		fp = torch.cat([x["fp"] for x in outputs])
+		fn = torch.cat([x["fn"] for x in outputs])
+		tn = torch.cat([x["tn"] for x in outputs])
 
-        	self.log_dict(metrics, prog_bar=True)
-        	return loss
+		per_image_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro-imagewise")
+		
+		pod_score = smp.metrics.f1_score(tp, fp, fn, tn, reduction = "none")
+		pod_score_classwise = pod_score.mean(axis = 0)
+		
+		dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
+
+		try_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction = "none")
+		iou_classwise = try_iou.mean(axis = 0)
+
+		metrics = {}
+		loss = sum(losses)/len(losses)
+		metrics[f'{stage}_loss'] = loss
+		metrics[f'{stage}_iou'] = dataset_iou
+	
+		for i, name in enumerate(self.cat_names):
+			metrics[f'{stage}_{name}_pod'] = pod_score_classwise[i]
+			metrics[f'{stage}_{name}_iou'] = iou_classwise[i]
+
+		self.log_dict(metrics, prog_bar=True)
+		return loss
 
 	def training_step(self, batch, batch_idx):
-	        if batch_idx == 0:
-	        	self.train_outputs = []
-	        train_cur = self.shared_step(batch, "train")
-	        self.train_outputs.append(train_cur)
-	        return train_cur           
+		if batch_idx == 0:
+			self.train_outputs = []
+		train_cur = self.shared_step(batch, "train")
+		self.train_outputs.append(train_cur)
+		return train_cur           
 
     	def on_train_epoch_end(self):
-	        self.shared_epoch_end(self.train_outputs, "train")
-	        self.epoch += 1
-	        return
+			self.shared_epoch_end(self.train_outputs, "train")
+			self.epoch += 1
+			return
 
 	def validation_step(self, batch, batch_idx):
-	        if batch_idx == 0:
-	        	self.valid_outputs = []
-	        valid_cur = self.shared_step(batch, "valid")
-	        self.valid_outputs.append(valid_cur)
-	        return valid_cur   
+		if batch_idx == 0:
+			self.valid_outputs = []
+		valid_cur = self.shared_step(batch, "valid")
+		self.valid_outputs.append(valid_cur)
+		return valid_cur   
 
 	def on_validation_epoch_end(self):
-        	return self.shared_epoch_end(self.valid_outputs, "valid")
+		return self.shared_epoch_end(self.valid_outputs, "valid")
 
 	def test_step(self, batch, batch_idx):
 		if batch_idx == 0:
@@ -163,10 +163,10 @@ class UNetModel(pl.LightningModule):
 		return test_cur  
 
 	def on_test_epoch_end(self):
-        	return self.shared_epoch_end(self.test_outputs, "test")
+		return self.shared_epoch_end(self.test_outputs, "test")
 
 	def configure_optimizers(self):
-        	return torch.optim.Adam(self.parameters(), lr=0.0001)
+		return torch.optim.Adam(self.parameters(), lr=0.0001)
 
 
 
@@ -404,5 +404,5 @@ def main(request):
         	response = collection_conn.insert_one(output)
 
 		return "OK"
-    	except:
+	except:
 		return "ERROR" 
