@@ -333,7 +333,7 @@ def decode_segmap(tensor, img_in, choosen_cat_names, choose_class, threshold = 0
 
 
 model = UNetModel("unet", "efficientnet-b0", in_channels=3, out_classes=1, cat_names = ['water'])
-checkpoint = torch.load("best.ckpt")
+checkpoint = torch.load("best.ckpt", map_location=torch.device('cpu'))
 
 model.load_state_dict(checkpoint['state_dict'])
 
@@ -364,40 +364,43 @@ def main(request):
     image_bytes = base64.b64decode(image_data)
 
     img_ori = np.frombuffer(image_bytes, dtype=np.uint8)
-    img_ori = cv2.imdecode(img_ori, cv2.IMREAD_COLOR)
-    firebase.start(img_ori)
-    print(img_ori)
+    try:
+        img_ori = cv2.imdecode(img_ori, cv2.IMREAD_COLOR)
+        firebase.start(img_ori)
+        print(img_ori)
     #img_ori = normalize(img_ori)
-    img_proc = apply_low_pass_filter(img_ori, 40)
+        img_proc = apply_low_pass_filter(img_ori, 40)
 
-    print(img_ori.shape)
-    img = cv2.resize(img_proc, (512, 512))
+        print(img_ori.shape)
+        img = cv2.resize(img_proc, (512, 512))
 
-    transform = transforms.ToTensor()
-    tensor = transform(img)
+        transform = transforms.ToTensor()
+        tensor = transform(img)
 
-    tensor = tensor.unsqueeze(0)
-    model.eval()  
+        tensor = tensor.unsqueeze(0)
+        model.eval()  
 
-    with torch.no_grad():
-        logits = model(tensor)
+        with torch.no_grad():
+            logits = model(tensor)
         
-    pr_masks = logits.sigmoid()
+        pr_masks = logits.sigmoid()
 
-    pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
+        pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
 
-    area = 0
+        area = 0
 
-    for result in results:
-        area += cv2.contourArea(result['cnt'])
+        for result in results:
+            area += cv2.contourArea(result['cnt'])
 
-    output = {"area": area, 
-              "path_img": remote_path_img, 
-              "fecha_iso": fecha_actual, 
-              "lugar": lugar,
-              "pixel_metro": pixel_metro,
-              "fecha_filtro": str(fecha_actual)}
+        output = {"area": area, 
+                  "path_img": remote_path_img, 
+                  "fecha_iso": fecha_actual.isoformat(), 
+                  "lugar": lugar,
+                  "pixel_metro": pixel_metro,
+                  "fecha_filtro": str(fecha_actual)}
 
-    response = collection_conn.insert_one(output)
+        response = collection_conn.insert_one(output)
 
-    return "OK"
+        return "OK"
+    except:
+	return "ERROR" 

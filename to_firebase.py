@@ -33,9 +33,9 @@ class to_firebase():
         
     def update(self, img):
         tic = time.time()
-        cv2.imwrite("tmp.jpg",img)
+        cv2.imwrite("/tmp/tmp.jpg",img)
         print(self.img_name)
-        self.storage.child('/lagunas/'+self.img_name).put("tmp.jpg")
+        self.storage.child('/lagunas/'+self.img_name).put("/tmp/tmp.jpg")
         print(time.time() - tic)
         
 
