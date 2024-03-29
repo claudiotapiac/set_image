@@ -140,7 +140,7 @@ class UNetModel(pl.LightningModule):
 		self.train_outputs.append(train_cur)
 		return train_cur           
 
-    	def on_train_epoch_end(self):
+	def on_train_epoch_end(self):
 		self.shared_epoch_end(self.train_outputs, "train")
 		self.epoch += 1
 		return
