@@ -384,14 +384,14 @@ def main(request):
 
 		with torch.no_grad():
     			logits = model(tensor)
-        
-        	pr_masks = logits.sigmoid()
+		
+		pr_masks = logits.sigmoid()
 
-        	pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
+		pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
 
         	area = 0
 
-        	for result in results:
+		for result in results:
             		area += cv2.contourArea(result['cnt'])
 
         	output = {"area": area, 
