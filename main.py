@@ -346,9 +346,11 @@ connection_string = "mongodb://deliryum-mongodb:Z50r80Z1WKtYhEd2hvt5vcGwDFCgF50G
 client = MongoClient(connection_string)
 conn = client.get_database("deliryum")
 
+timeZ_AS = pytz.timezone('America/Santiago')
+
 @functions_framework.http
 def main(request):
-	now = datetime.now()
+	now = datetime.now(timeZ_AS)
 	fecha_actual =  datetime(now.year, now.month, now.day, now.hour, now.minute, now.second, tzinfo=timezone.utc)
 	
 	collection_conn = conn.get_collection("prueba")
