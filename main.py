@@ -58,9 +58,9 @@ class UNetModel(pl.LightningModule):
 		pod_total = []
 	
 		for e in range(num_det):
-		pod_class = [0]*num_class
-		for i in range(num_class):
-			pod_class[i] = tp[e,i]/(2*tp[e,i]+fp[e,i] + 1e-8)
+			pod_class = [0]*num_class
+			for i in range(num_class):
+				pod_class[i] = tp[e,i]/(2*tp[e,i]+fp[e,i] + 1e-8)
 			
 			pod_total.append(pod_class)
 
