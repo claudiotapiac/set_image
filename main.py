@@ -345,62 +345,61 @@ conn = client.get_database("deliryum")
 
 @functions_framework.http
 def main(request):
-    
-    now = datetime.now()
-    fecha_actual =  datetime(now.year, now.month, now.day, now.hour, now.minute, now.second, tzinfo=timezone.utc)
+	now = datetime.now()
+	fecha_actual =  datetime(now.year, now.month, now.day, now.hour, now.minute, now.second, tzinfo=timezone.utc)
+	
+	collection_conn = conn.get_collection("prueba")
+	
+	request_json = request.get_json(silent=True)
+	request_args = request.args
+	
+	image_data = request_json.get('img')
+	lugar = request_json.get('lugar')
+	pixel_metro = request_json.get('pixel_metro')
+	
+	remote_path_img = f"{lugar}_{str(fecha_actual)}.jpg"
+	firebase = to_firebase(remote_path_img)
+	
+	image_bytes = base64.b64decode(image_data)
+	
+	img_ori = np.frombuffer(image_bytes, dtype=np.uint8)
+	try:
+		img_ori = cv2.imdecode(img_ori, cv2.IMREAD_COLOR)
+		firebase.start(img_ori)
+		print(img_ori)
+		#img_ori = normalize(img_ori)
+		img_proc = apply_low_pass_filter(img_ori, 40)
+		
+		print(img_ori.shape)
+		img = cv2.resize(img_proc, (512, 512))
+		
+		transform = transforms.ToTensor()
+		tensor = transform(img)
+		
+		tensor = tensor.unsqueeze(0)
+		model.eval()  
 
-    collection_conn = conn.get_collection("prueba")
-
-    request_json = request.get_json(silent=True)
-    request_args = request.args
-
-    image_data = request_json.get('img')
-    lugar = request_json.get('lugar')
-    pixel_metro = request_json.get('pixel_metro')
-
-    remote_path_img = f"{lugar}_{str(fecha_actual)}.jpg"
-    firebase = to_firebase(remote_path_img)
-    
-    image_bytes = base64.b64decode(image_data)
-
-    img_ori = np.frombuffer(image_bytes, dtype=np.uint8)
-    try:
-        img_ori = cv2.imdecode(img_ori, cv2.IMREAD_COLOR)
-        firebase.start(img_ori)
-        print(img_ori)
-    #img_ori = normalize(img_ori)
-        img_proc = apply_low_pass_filter(img_ori, 40)
-
-        print(img_ori.shape)
-        img = cv2.resize(img_proc, (512, 512))
-
-        transform = transforms.ToTensor()
-        tensor = transform(img)
-
-        tensor = tensor.unsqueeze(0)
-        model.eval()  
-
-        with torch.no_grad():
-            logits = model(tensor)
+		with torch.no_grad():
+            	logits = model(tensor)
         
-        pr_masks = logits.sigmoid()
+        	pr_masks = logits.sigmoid()
 
-        pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
+        	pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
 
-        area = 0
+        	area = 0
 
-        for result in results:
-            area += cv2.contourArea(result['cnt'])
+        	for result in results:
+            		area += cv2.contourArea(result['cnt'])
 
-        output = {"area": area, 
-                  "path_img": remote_path_img, 
-                  "fecha_iso": fecha_actual.isoformat(), 
-                  "lugar": lugar,
-                  "pixel_metro": pixel_metro,
-                  "fecha_filtro": str(fecha_actual)}
+        	output = {"area": area, 
+			  "path_img": remote_path_img, 
+			  "fecha_iso": fecha_actual.isoformat(), 
+			  "lugar": lugar,
+			  "pixel_metro": pixel_metro,
+			  "fecha_filtro": str(fecha_actual)}
 
-        response = collection_conn.insert_one(output)
+        	response = collection_conn.insert_one(output)
 
-        return "OK"
-    except:
-	return "ERROR" 
+		return "OK"
+    	except:
+		return "ERROR" 
