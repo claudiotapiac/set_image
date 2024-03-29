@@ -389,19 +389,19 @@ def main(request):
 
 		pr_masks, img_pls_mask, results = decode_segmap(pr_masks, img_ori.copy(), ['water'], ['water'],threshold = {'water':0.9}, porc = 0.5)
 
-        	area = 0
+		area = 0
 
 		for result in results:
-            		area += cv2.contourArea(result['cnt'])
+			area += cv2.contourArea(result['cnt'])
 
-        	output = {"area": area, 
+		output = {"area": area, 
 			  "path_img": remote_path_img, 
 			  "fecha_iso": fecha_actual.isoformat(), 
 			  "lugar": lugar,
 			  "pixel_metro": pixel_metro,
 			  "fecha_filtro": str(fecha_actual)}
 
-        	response = collection_conn.insert_one(output)
+		response = collection_conn.insert_one(output)
 
 		return "OK"
 	except:
