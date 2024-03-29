@@ -141,9 +141,9 @@ class UNetModel(pl.LightningModule):
 		return train_cur           
 
     	def on_train_epoch_end(self):
-			self.shared_epoch_end(self.train_outputs, "train")
-			self.epoch += 1
-			return
+		self.shared_epoch_end(self.train_outputs, "train")
+		self.epoch += 1
+		return
 
 	def validation_step(self, batch, batch_idx):
 		if batch_idx == 0:
