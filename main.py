@@ -332,7 +332,7 @@ def decode_segmap(tensor, img_in, choosen_cat_names, choose_class, threshold = 0
 							cv2.FONT_HERSHEY_SIMPLEX, 
 							1, (255, 255, 255), 2)
                 
-    return rgb, rgb_in_out, results
+	return rgb, rgb_in_out, results
 
 
 model = UNetModel("unet", "efficientnet-b0", in_channels=3, out_classes=1, cat_names = ['water'])
