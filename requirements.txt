@@ -8,3 +8,4 @@ opencv-python==4.9.0.80
 pymongo==4.4.1
 six==1.15.0
 pyrebase4==4.7.1
+pytz==2023.3.post1
