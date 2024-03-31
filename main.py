@@ -238,7 +238,7 @@ def avr_images(l, idx, color_pos, porc, label_colors, color_canal):
 
 def decode_segmap(tensor, img_in, choosen_cat_names, choose_class, threshold = 0.5, porc=0.5):
   
-	label_colors = np.array([(123, 80,  50)])
+	label_colors = np.array([(123, 80,  123)])
 	
 	h_in, w_in, _ = img_in.shape
 	
@@ -371,7 +371,6 @@ def main(request):
 	img_ori = np.frombuffer(image_bytes, dtype=np.uint8)
 	try:
 		img_ori = cv2.imdecode(img_ori, cv2.IMREAD_COLOR)
-		firebase.start(img_ori)
 		print(img_ori)
 		#img_ori = normalize(img_ori)
 		img_proc = apply_low_pass_filter(img_ori, 40)
@@ -405,6 +404,8 @@ def main(request):
 			  "fecha_filtro": str(fecha_actual)}
 
 		response = collection_conn.insert_one(output)
+
+		firebase.start(img_pls_mask)
 
 		return "OK"
 	except:
